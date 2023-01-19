@@ -11,10 +11,10 @@
 #include <memory>
 
 // Globals
-pthread_mutex_t mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 std::unordered_map<std::string, int> word_count;
 std::vector<std::string> substrings;
-int numwords = 0;
+
 
 void* thread_function(void *arg) {
     // Convert the void pointer to an int pointer, and dereference it to get the value of 'a'
@@ -27,15 +27,9 @@ void* thread_function(void *arg) {
     // Iterate through all the words in the substring
     while (ss >> word) {
         // Lock the mutex before accessing the shared data structures
-        pthread_mutex_lock(&mtx);
-
-        // Increment the total number of words
-        numwords++;
-        // Increment the count of the current word in the word_count map
-        word_count[word]++;
-
-        // Unlock the mutex
-        pthread_mutex_unlock(&mtx);
+        pthread_mutex_lock(&mutex);
+        ++word_count[word];
+        pthread_mutex_unlock(&mutex);
     }
 }
 
@@ -49,6 +43,11 @@ void print_info(struct stat sb, int num_threads){
 
     std::cout << "Here's some helpful info about your file: \n";
     
+    int numwords = 0;
+    for(auto curr = word_count.begin(); curr != word_count.end(); curr++) {
+        numwords += curr->second;
+    }
+
     std::cout << "Total number of words: " << numwords << "\n";
     std::cout << "Number of unique words: " <<  word_count.size() << "\n";
     std::cout << "Most common word: " << largest->first << "\n";
@@ -127,21 +126,19 @@ int main(int argc, char *argv[]){
     int num_threads = substrings.size();
 
     // Create the threads array
+    pthread_mutex_init(&mutex, NULL);
     pthread_t threads[num_threads];
     // Initialize the mutex
-    pthread_mutex_init(&mtx, NULL);
+
 
     // Create the threads
     for (int i = 0; i < num_threads; i++) {
         std::unique_ptr<int> thread_num(new int(i));
         pthread_create(&threads[i], NULL, thread_function, (void*)thread_num.get());
-    }
-
-
-    // wait for all threads to finish
-    for (int i = 0; i < num_threads; i++) {
         pthread_join(threads[i], NULL);
     }
+
+
 
 
     // Print out information about the processed file
